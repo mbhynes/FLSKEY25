@@ -29,7 +29,7 @@
 # Pad Mapping for this controller
 # https://en.wikipedia.org/wiki/General_MIDI
 
-midi_instrument_note_map = {
+MIDI_INSTRUMENT_NOTES = {
     "Acoustic Bass Drum": 35,
     "Electric Bass Drum": 36,
     "Side Stick": 37,
@@ -78,7 +78,9 @@ midi_instrument_note_map = {
     "Mute Triangle": 80,
     "Open Triangle": 81,
 }
-pad_mappings = [
+
+# fmt: off
+PAD_INSTRUMENTS = [
     [0, "Hi-Mid Tom", "Hi Tom", "Tambourine", 0, 0, 0, 0],
     ["Low Floor Tom", "Low Tom", "Low-Mid Tom", "Crash Cymbal 1", 0, 0, 0, 0],
     ["Closed Hi-hat", "Open Hi-hat", "Pedal Hi-hat", "Ride Cymbal 1", 0, 0, 0, 0],
@@ -94,6 +96,7 @@ pad_mappings = [
         0,
     ],
 ]
+# fmt: on
 
 # Real
 # 32,33,34,35,36,37,38,39
@@ -240,7 +243,7 @@ class DeviceHandler:
 
 
 class MidiInHandler:
-    def __init__(self):
+    def __init__(self, pad_instruments):
         self.mapPadFunction = []
         self.inPerformanceMode = False
         self.knobs = KnobHandler()
@@ -251,56 +254,16 @@ class MidiInHandler:
         self.map = {}
         nrows = len(pad_mappings)
 
-        # Iterate starting from the last row
-        for i, row in enumerate(pad_mappings[::-1]):
+        # Resolve the MIDI output note values for the provided pad instrument matrix.
+        # The 8 x 5 pad matrix is 0-indexed at the bottom left.
+        # [32,  ...  39]
+        #  :    ...  :
+        # [8, 9, ... 15]
+        # [0, 1, ...  7]
+        for i, row in enumerate(pad_outputs[::-1]):
             for j, instrument in enumerate(row):
                 idx = i * nrows + j
-                self.map[idx] = midi_instrument_note_map.get(instrument, 0)
-
-        # self.map[0] = 48
-        # self.map[1] = 49
-        # self.map[2] = 50
-        # self.map[3] = 51
-        # self.map[4] = 52
-        # self.map[5] = 53
-        # self.map[6] = 54
-        # self.map[7] = 55
-
-        # self.map[8] = 36
-        # self.map[9] = 37
-        # self.map[10] = 38
-        # self.map[11] = 39
-        # self.map[12] = 40
-        # self.map[13] = 41
-        # self.map[14] = 42
-        # self.map[15] = 43
-
-        # self.map[16] = 24
-        # self.map[17] = 25
-        # self.map[18] = 26
-        # self.map[19] = 27
-        # self.map[20] = 28
-        # self.map[21] = 29
-        # self.map[22] = 30
-        # self.map[23] = 31
-
-        # self.map[24] = 12
-        # self.map[25] = 13
-        # self.map[26] = 14
-        # self.map[27] = 15
-        # self.map[28] = 16
-        # self.map[29] = 17
-        # self.map[30] = 18
-        # self.map[31] = 19
-
-        # self.map[32] = 0
-        # self.map[33] = 1
-        # self.map[34] = 2
-        # self.map[35] = 3
-        # self.map[36] = 4
-        # self.map[37] = 5
-        # self.map[38] = 6
-        # self.map[39] = 7
+                self.map[idx] = MIDI_INSTRUMENT_NOTES.get(instrument, 0)
 
     def debugKeyPress(self, event):
         debug(playlist.getTrackActivityLevel(1))
@@ -713,7 +676,7 @@ class PerformanceMode:
 
 
 start = InitClass()
-midiIn = MidiInHandler()
+midiIn = MidiInHandler(pad_instruments=PAD_INSTRUMENTS)
 led = LedControl()
 live = PerformanceMode(led)
 
