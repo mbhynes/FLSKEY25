@@ -81,53 +81,29 @@ MIDI_INSTRUMENT_NOTES = {
 
 # fmt: off
 PAD_INSTRUMENTS = [
-    [0, "Hi-Mid Tom", "Hi Tom", "Tambourine", 0, 0, 0, 0],
-    ["Low Floor Tom", "Low Tom", "Low-Mid Tom", "Crash Cymbal 1", 0, 0, 0, 0],
-    ["Closed Hi-hat", "Open Hi-hat", "Pedal Hi-hat", "Ride Cymbal 1", 0, 0, 0, 0],
-    ["Side Stick", "Electric Snare", "Acoustic Snare", "Hand Clap", 0, 0, 0, 0],
-    [
-        "Crash Cymbal 2",
-        "Electric Bass Drum",
-        "Acoustic Bass Drum",
-        "Ride Cymbal 2",
-        0,
-        0,
-        0,
-        0,
-    ],
+    [],
+    ["High Floor Tom",  "Low Tom",               "Low-Mid Tom",          "Crash Cymbal 1",   ],
+    ["Closed Hi-hat",  "Open Hi-hat",           "Pedal Hi-hat",         "Ride Cymbal 1",    ],
+    ["Side Stick",      "Electric Snare",       "Acoustic Snare",       "Hand Clap",        ],
+    ["Crash Cymbal 2", "Electric Bass Drum",    "Acoustic Bass Drum",   "Ride Cymbal 2",    ],
 ]
 # fmt: on
 
-# Real
-# 32,33,34,35,36,37,38,39
-# 24,25,26,27,28,29,30,31
-# 16,17,18,19,20,21,22,23
-# 08,09,10,11,12,13,14,15
-# 00,01,02,03,04,05,06,07
-
-# Mapped
-# Off#08
-# 00,01,02,03,04,05,06,07
-# Off#20
-# 12,13,14,15,16,17,18,19
-# Off#32
-# 24,25,26,27,28,29,30,31
-# Off#44
-# 36,37,38,39,40,41,42,43
-# off#56
-# 48,49,50,51,52,53,54,55
-
 # This import section is loading the back-end code required to execute the script. You may not need all modules that are available for all scripts.
-import transport
-import mixer
-import ui
-import midi
-import sys
-import device
-import channels
-import playlist
-import patterns
-import plugins
+try:
+    import transport
+    import mixer
+    import ui
+    import midi
+    import sys
+    import device
+    import channels
+    import playlist
+    import patterns
+    import plugins
+except ImportError:
+    pass
+
 
 # definition of controller modes
 ctrlUser = 0
@@ -173,9 +149,6 @@ def msg(message):
 
 
 class InitClass:
-    def __init__(self):
-        print("Actual Init.")
-        print(f"MIDI: {dir(patterns)}")
 
     def startTheShow(self):
         # set global transport mode
@@ -252,15 +225,15 @@ class MidiInHandler:
         print(f"0 pad toggle: {self.padToggle}")
 
         self.map = {}
-        nrows = len(pad_mappings)
+        nrows = len(pad_instruments)
 
         # Resolve the MIDI output note values for the provided pad instrument matrix.
-        # The 8 x 5 pad matrix is 0-indexed at the bottom left.
-        # [32,  ...  39]
-        #  :    ...  :
-        # [8, 9, ... 15]
-        # [0, 1, ...  7]
-        for i, row in enumerate(pad_outputs[::-1]):
+        # The 5 x 8 pad matrix is 0-indexed at the bottom left.
+        #   [32,  ...  39]
+        #    :    ...  :
+        #   [8, 9, ... 15]
+        #   [0, 1, ...  7]
+        for i, row in enumerate(pad_instruments[::-1]):
             for j, instrument in enumerate(row):
                 idx = i * nrows + j
                 self.map[idx] = MIDI_INSTRUMENT_NOTES.get(instrument, 0)
