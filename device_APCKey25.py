@@ -29,6 +29,34 @@
 # Pad Mapping for this controller
 # https://en.wikipedia.org/wiki/General_MIDI
 
+# This import section is loading the back-end code required to execute the script. You may not need all modules that are available for all scripts.
+try:
+    import channels
+    import device
+    import midi
+    import mixer
+    import playlist
+    import patterns
+    import plugins
+    import transport
+    import ui
+except ImportError:
+    from unittest.mock import Mock
+    channels = Mock()
+    device = Mock()
+    midi = Mock()
+    mixer = Mock()
+    playlist = Mock()
+    patterns = Mock()
+    plugins = Mock()
+    transport = Mock()
+    ui = Mock()
+
+import sys
+import functools
+import operator
+
+
 MIDI_INSTRUMENT_NOTES = {
     "Acoustic Bass Drum": 35,
     "Electric Bass Drum": 36,
@@ -80,30 +108,72 @@ MIDI_INSTRUMENT_NOTES = {
 }
 
 # fmt: off
-PAD_INSTRUMENTS = [
+
+# Define Left half of PAD (6 x 4) instrument matrix
+PAD_INSTUMENTS_A = [
     [],
-    ["High Floor Tom",  "Low Tom",               "Low-Mid Tom",          "Crash Cymbal 1",   ],
+    ["High Floor Tom",  "Low Tom",               "Low-Mid Tom",          "Crash Cymbal 1",  ],
+    ["Closed Hi-hat",  "Open Hi-hat",           "Pedal Hi-hat",         "Ride Cymbal 1",    ],
+    ["Side Stick",      "Electric Snare",       "Acoustic Snare",       "Hand Clap",        ],
+    ["Crash Cymbal 2", "Electric Bass Drum",    "Acoustic Bass Drum",   "Ride Cymbal 2",    ],
+]
+
+# Define right half of PAD (6 x 4) instrument matrix
+PAD_INSTUMENTS_B = [
+    [],
+    ["High Floor Tom",  "Low Tom",               "Low-Mid Tom",          "Crash Cymbal 1",  ],
     ["Closed Hi-hat",  "Open Hi-hat",           "Pedal Hi-hat",         "Ride Cymbal 1",    ],
     ["Side Stick",      "Electric Snare",       "Acoustic Snare",       "Hand Clap",        ],
     ["Crash Cymbal 2", "Electric Bass Drum",    "Acoustic Bass Drum",   "Ride Cymbal 2",    ],
 ]
 # fmt: on
 
-# This import section is loading the back-end code required to execute the script. You may not need all modules that are available for all scripts.
-try:
-    import transport
-    import mixer
-    import ui
-    import midi
-    import sys
-    import device
-    import channels
-    import playlist
-    import patterns
-    import plugins
-except ImportError:
-    pass
+def concat_pads(*pads):
+    """
+    Concatenate the provided 2-D pad lists along axis 1.
 
+    concat_pads([
+        [1, 2, 3],
+
+    """
+    assert len(set(len(p) for p in pads)) == 1, "All provided pads must have the same # of rows"
+
+    zipped_rows = zip(*pads)
+    concat_rows = [
+        functools.reduce(operator.add, rs)
+        for rs in zipped_rows
+    ]
+    return concat_rows
+
+def instruments_to_midi(pad_instruments, instrument_note_map=MIDI_INSTRUMENT_NOTES):
+    """
+    Resolve MIDI output note values for the provided pad instrument matrix.
+    The 5 x 8 pad matrix is 0-indexed at the bottom left.
+      [32,  ...  39]
+       :    ...  :
+      [8, 9, ... 15]
+      [0, 1, ...  7]
+
+    Args:
+        pad_instruments: 2-D list of instrument strings
+    Returns: a dictionary of integer pad indices to midi notes
+    """
+    pad_notes = {}
+    ncols = 8
+
+    for i, row in enumerate(pad_instruments[::-1]):
+        for j, instrument in enumerate(row):
+            idx = i * ncols + j
+            pad_notes[idx] = instrument_note_map.get(instrument, 0)
+
+    for row in pad_instruments:
+        if len(row):
+            print("\t\t".join(row))
+        else:
+            print("(empty)")
+
+
+    return pad_notes
 
 # definition of controller modes
 ctrlUser = 0
@@ -216,27 +286,14 @@ class DeviceHandler:
 
 
 class MidiInHandler:
-    def __init__(self, pad_instruments):
+    def __init__(self, pad_midi_mapping):
         self.mapPadFunction = []
         self.inPerformanceMode = False
         self.knobs = KnobHandler()
 
         self.padToggle = True
         print(f"0 pad toggle: {self.padToggle}")
-
-        self.map = {}
-        nrows = len(pad_instruments)
-
-        # Resolve the MIDI output note values for the provided pad instrument matrix.
-        # The 5 x 8 pad matrix is 0-indexed at the bottom left.
-        #   [32,  ...  39]
-        #    :    ...  :
-        #   [8, 9, ... 15]
-        #   [0, 1, ...  7]
-        for i, row in enumerate(pad_instruments[::-1]):
-            for j, instrument in enumerate(row):
-                idx = i * nrows + j
-                self.map[idx] = MIDI_INSTRUMENT_NOTES.get(instrument, 0)
+        self.map = pad_midi_mapping
 
     def debugKeyPress(self, event):
         debug(playlist.getTrackActivityLevel(1))
@@ -649,7 +706,7 @@ class PerformanceMode:
 
 
 start = InitClass()
-midiIn = MidiInHandler(pad_instruments=PAD_INSTRUMENTS)
+midiIn = MidiInHandler(instruments_to_midi(concat_pads(PAD_INSTUMENTS_A, PAD_INSTUMENTS_B)))
 led = LedControl()
 live = PerformanceMode(led)
 
